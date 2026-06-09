@@ -8,13 +8,14 @@ import {
   Copy,
   Layers,
   Network,
+  Wallet,
   LogOut,
   ChevronDown,
   ChevronRight,
   X,
 } from "lucide-react";
 import { useSidebar } from "@/providers/SidebarProvider";
-import { mockMasterProfile } from "@/lib/mock/copier";
+import { useMasterProfile } from "@/providers/MasterProfileProvider";
 import { clearUserToken } from "@/lib/auth-storage";
 
 function NavSectionTitle({ children }: { children: React.ReactNode }) {
@@ -29,11 +30,21 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { mobileMenuOpen, setMobileMenuOpen } = useSidebar();
-  const routeMenu = pathname.startsWith("/copier") ? "copier" : pathname.startsWith("/pamm") ? "pamm" : pathname.startsWith("/mam") ? "mam" : null;
+  const routeMenu = pathname.startsWith("/copier")
+    ? "copier"
+    : pathname.startsWith("/pamm")
+      ? "pamm"
+      : pathname.startsWith("/mam")
+        ? "mam"
+        : pathname.startsWith("/accounts")
+          ? "accounts"
+          : null;
   const [manualMenu, setManualMenu] = useState<string | null>(null);
   const openMenu = manualMenu ?? routeMenu;
 
-  const isMaster = mockMasterProfile.status === "approved";
+  const { status: masterStatus } = useMasterProfile();
+  const masterNavLabel =
+    masterStatus === "approved" || masterStatus === "pending" ? "Master Area" : "Become Master";
 
   const toggleMenu = (menu: string) => setManualMenu(openMenu === menu ? null : menu);
 
@@ -98,6 +109,34 @@ export default function Sidebar() {
             Dashboard
           </Link>
 
+          <NavSectionTitle>Accounts</NavSectionTitle>
+          <div className="mt-1">
+            <button
+              type="button"
+              onClick={() => toggleMenu("accounts")}
+              className={`${itemBase} ${pathname.startsWith("/accounts") ? itemActive : itemIdle}`}
+            >
+              <span className={iconWrap(pathname.startsWith("/accounts"))}>
+                <Wallet className="h-4 w-4" strokeWidth={2} />
+              </span>
+              <span className="flex-1 text-left">Accounts</span>
+              {openMenu === "accounts" ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            </button>
+            {openMenu === "accounts" ? (
+              <div className="ml-4 mt-1 space-y-0.5 border-l-2 border-[color:var(--app-primary-solid)] pl-2">
+                <Link href="/accounts" onClick={() => setMobileMenuOpen(false)} className={subLink(pathname === "/accounts")}>
+                  My Accounts
+                </Link>
+                <Link href="/accounts/deposit" onClick={() => setMobileMenuOpen(false)} className={subLink(pathname === "/accounts/deposit")}>
+                  Deposit
+                </Link>
+                <Link href="/accounts/withdrawal" onClick={() => setMobileMenuOpen(false)} className={subLink(pathname === "/accounts/withdrawal")}>
+                  Withdrawal
+                </Link>
+              </div>
+            ) : null}
+          </div>
+
           <NavSectionTitle>Social Trading</NavSectionTitle>
 
           {/* Copier */}
@@ -114,7 +153,7 @@ export default function Sidebar() {
                 <Link href="/copier/rating" onClick={() => setMobileMenuOpen(false)} className={subLink(pathname.startsWith("/copier/rating") || pathname === "/copier/list")}>Top Rated</Link>
                 <Link href="/copier/area" onClick={() => setMobileMenuOpen(false)} className={subLink(pathname === "/copier/area")}>Copier Area</Link>
                 <Link href="/copier/master" onClick={() => setMobileMenuOpen(false)} className={subLink(pathname === "/copier/master")}>
-                  {isMaster ? "Master Area" : "Become Master"}
+                  {masterNavLabel}
                 </Link>
               </div>
             ) : null}

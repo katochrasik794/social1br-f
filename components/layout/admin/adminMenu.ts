@@ -6,6 +6,9 @@ import {
   Users,
   Settings,
   Server,
+  CreditCard,
+  ArrowDownToLine,
+  ArrowUpFromLine,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -64,17 +67,25 @@ export const ADMIN_MENU: AdminMenuSection[] = [
   {
     label: "MT5 MANAGEMENT",
     items: [
-      {
-        icon: Server,
-        label: "MT5 Management",
-        to: "mt5/groups",
-        children: [
-          { label: "Group Management", to: "mt5/groups" },
-          { label: "Manager Connection", to: "mt5/manager" },
-        ],
-      },
+      { icon: Layers, label: "Group Management", to: "mt5/groups" },
+      { icon: Server, label: "Manager Connection", to: "mt5/manager" },
+      { icon: Users, label: "User MT5 Accounts", to: "mt5/accounts" },
+      { icon: CreditCard, label: "Manual Gateways", to: "manual-gateways" },
+      { icon: ArrowDownToLine, label: "Deposits", to: "deposits" },
+      { icon: ArrowUpFromLine, label: "Withdrawals", to: "withdrawals" },
     ],
   },
 ];
 
-export const ADMIN_ICONS = { Copy, Layers, Network, LayoutDashboard, Users, Settings, Server };
+export const ADMIN_ICONS = {
+  Copy,
+  Layers,
+  Network,
+  LayoutDashboard,
+  Users,
+  Settings,
+  Server,
+  CreditCard,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+};

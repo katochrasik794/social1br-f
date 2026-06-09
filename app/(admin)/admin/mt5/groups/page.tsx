@@ -9,6 +9,7 @@ import {
   Power,
   Trash2,
   Edit3,
+  LayoutGrid,
   Loader2,
 } from "lucide-react";
 import AdminDataTable from "@/components/admin/AdminDataTable";
@@ -30,7 +31,7 @@ function formatMoney(value: number | null, noMax = false) {
   return `$${value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 }
 
-type ActionKey = "view" | "limits" | "toggle" | "delete";
+type ActionKey = "view" | "limits" | "card" | "toggle" | "delete";
 
 function actionId(rowId: string, action: ActionKey) {
   return `${rowId}:${action}`;
@@ -84,9 +85,11 @@ export default function Mt5GroupsPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [savingDedicated, setSavingDedicated] = useState(false);
   const [savingLimits, setSavingLimits] = useState(false);
+  const [savingCard, setSavingCard] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const [viewRow, setViewRow] = useState<Mt5Group | null>(null);
+  const [cardRow, setCardRow] = useState<Mt5Group | null>(null);
   const [editRow, setEditRow] = useState<Mt5Group | null>(null);
   const [limitsRow, setLimitsRow] = useState<Mt5Group | null>(null);
   const [deleteRow, setDeleteRow] = useState<Mt5Group | null>(null);
@@ -98,6 +101,14 @@ export default function Mt5GroupsPage() {
     maxDeposit: "",
     minWithdrawal: "",
     maxWithdrawal: "",
+  });
+  const [cardForm, setCardForm] = useState({
+    badgeLabel: "",
+    planDescription: "",
+    spreadFrom: "",
+    maxLeverageDisplay: "",
+    commissionText: "",
+    minLotSize: "",
   });
 
   const setLoadingAction = (key: string | null) => setActionLoading(key);
@@ -206,6 +217,42 @@ export default function Mt5GroupsPage() {
     }
   }
 
+  function openCardEdit(row: Mt5Group) {
+    setCardRow(row);
+    setCardForm({
+      badgeLabel: row.badgeLabel ?? "",
+      planDescription: row.planDescription ?? "",
+      spreadFrom: row.spreadFrom ?? "",
+      maxLeverageDisplay: row.maxLeverageDisplay != null ? String(row.maxLeverageDisplay) : "500",
+      commissionText: row.commissionText ?? "",
+      minLotSize: row.minLotSize ?? "0.01 Lots",
+    });
+  }
+
+  async function saveCard() {
+    if (!cardRow) return;
+    setSavingCard(true);
+    try {
+      await updateMt5Group(cardRow.id, {
+        badgeLabel: cardForm.badgeLabel.trim() || null,
+        planDescription: cardForm.planDescription.trim() || null,
+        spreadFrom: cardForm.spreadFrom.trim() || null,
+        maxLeverageDisplay: cardForm.maxLeverageDisplay.trim()
+          ? Number(cardForm.maxLeverageDisplay)
+          : 500,
+        commissionText: cardForm.commissionText.trim() || null,
+        minLotSize: cardForm.minLotSize.trim() || null,
+      });
+      setCardRow(null);
+      await loadGroups();
+      showToast("Card display saved");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Save failed", "error");
+    } finally {
+      setSavingCard(false);
+    }
+  }
+
   async function saveLimits() {
     if (!limitsRow) return;
     const toNum = (v: string) => (v.trim() === "" ? null : Number(v));
@@ -232,7 +279,7 @@ export default function Mt5GroupsPage() {
   const tableRows = rows.map((r) => ({ ...r })) as Array<Mt5Group & Record<string, unknown>>;
 
   return (
-    <div className="mx-auto max-w-[2400px] space-y-6">
+    <div className="w-full min-w-0 space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex items-start gap-4">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-50 text-green-600 dark:bg-green-950/50 dark:text-green-400">
@@ -316,12 +363,16 @@ export default function Mt5GroupsPage() {
           {
             key: "marginCall",
             label: "Margin call",
-            render: (row) => <span>{row.marginCall != null ? String(row.marginCall) : "-"}</span>,
+            render: (row) => (
+              <span>{row.marginCall != null ? `${row.marginCall}%` : "-"}</span>
+            ),
           },
           {
             key: "marginStopOut",
             label: "Margin stop out",
-            render: (row) => <span>{row.marginStopOut != null ? String(row.marginStopOut) : "-"}</span>,
+            render: (row) => (
+              <span>{row.marginStopOut != null ? `${row.marginStopOut}%` : "-"}</span>
+            ),
           },
           {
             key: "minDeposit",
@@ -382,6 +433,12 @@ export default function Mt5GroupsPage() {
                     onClick={() => openLimitsEdit(g)}
                   />
                   <ActionButton
+                    label="Card"
+                    icon={LayoutGrid}
+                    disabled={busy}
+                    onClick={() => openCardEdit(g)}
+                  />
+                  <ActionButton
                     label={g.isActive ? "Inactive" : "Active"}
                     icon={Power}
                     loading={actionLoading === actionId(g.id, "toggle")}
@@ -429,6 +486,49 @@ export default function Mt5GroupsPage() {
             {savingDedicated ? "Saving..." : "Save"}
           </button>
         </div>
+      </Modal>
+
+      <Modal open={!!cardRow} onClose={() => !savingCard && setCardRow(null)} title="Card display" subtitle={cardRow?.groupName}>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {(
+            [
+              ["badgeLabel", "Badge label"],
+              ["spreadFrom", "Spread from"],
+              ["maxLeverageDisplay", "Max leverage"],
+              ["commissionText", "Commissions"],
+              ["minLotSize", "Min lot size"],
+            ] as const
+          ).map(([key, label]) => (
+            <div key={key}>
+              <label className="text-xs font-bold uppercase text-[var(--app-text-muted)]">{label}</label>
+              <input
+                value={cardForm[key]}
+                onChange={(e) => setCardForm((f) => ({ ...f, [key]: e.target.value }))}
+                disabled={savingCard}
+                className="mt-1 w-full rounded-xl border border-[var(--app-border)] px-3 py-2.5 text-sm font-bold disabled:opacity-50"
+              />
+            </div>
+          ))}
+          <div className="sm:col-span-2">
+            <label className="text-xs font-bold uppercase text-[var(--app-text-muted)]">Plan description</label>
+            <textarea
+              value={cardForm.planDescription}
+              onChange={(e) => setCardForm((f) => ({ ...f, planDescription: e.target.value }))}
+              disabled={savingCard}
+              rows={3}
+              className="mt-1 w-full rounded-xl border border-[var(--app-border)] px-3 py-2.5 text-sm font-bold disabled:opacity-50"
+            />
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={saveCard}
+          disabled={savingCard}
+          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[color:var(--app-primary-solid)] py-3 text-sm font-bold text-white disabled:opacity-50"
+        >
+          {savingCard ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+          {savingCard ? "Saving..." : "Save card display"}
+        </button>
       </Modal>
 
       <Modal open={!!limitsRow} onClose={() => !savingLimits && setLimitsRow(null)} title="Edit limits" subtitle={limitsRow?.groupName}>

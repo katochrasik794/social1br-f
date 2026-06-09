@@ -2,21 +2,33 @@
 
 import { HelpCircle, Star } from "lucide-react";
 import { btnPrimary } from "@/components/layout/user/PageContainer";
-import type { TopRatedMaster } from "@/lib/mock/copier";
+import type { TopRatedMaster } from "@/lib/api/copier";
 import type { MasterAccountDetails } from "@/lib/mock/masterDetail";
 import { money } from "@/lib/utils";
 
 type MasterProfileCardProps = {
   master: TopRatedMaster;
   details: MasterAccountDetails;
-  onCopyClick: () => void;
+  onCopyClick?: () => void;
+  readOnly?: boolean;
+  copyDisabledMessage?: string;
+  email?: string;
+  accountLogin?: string;
 };
 
 function riskLabel(score: number) {
   return `${score} risk`;
 }
 
-export default function MasterProfileCard({ master, details, onCopyClick }: MasterProfileCardProps) {
+export default function MasterProfileCard({
+  master,
+  details,
+  onCopyClick,
+  readOnly,
+  copyDisabledMessage,
+  email,
+  accountLogin,
+}: MasterProfileCardProps) {
   const initials = master.displayName.slice(0, 2).toUpperCase();
 
   return (
@@ -32,12 +44,37 @@ export default function MasterProfileCard({ master, details, onCopyClick }: Mast
             <Star className="h-3.5 w-3.5 fill-[color:var(--app-primary-solid)] text-[color:var(--app-primary-solid)]" />
             {master.expertise}
           </p>
-          <button type="button" onClick={onCopyClick} className={`${btnPrimary} mt-5 w-full rounded-full py-3 text-[15px] uppercase tracking-wide`}>
-            Set up copying
-          </button>
-          <p className="mt-2 text-sm text-[var(--app-text-muted)]">
-            Minimum investment {money(master.minCopyAmount)}
-          </p>
+          {readOnly ? (
+            <div className="mt-5 w-full space-y-2 text-left text-sm">
+              {email ? (
+                <p className="text-[var(--app-text-muted)]">
+                  Email: <span className="font-medium text-[var(--app-text-primary)]">{email}</span>
+                </p>
+              ) : null}
+              {accountLogin ? (
+                <p className="text-[var(--app-text-muted)]">
+                  MT5: <span className="font-medium text-[var(--app-text-primary)]">{accountLogin}</span>
+                </p>
+              ) : null}
+            </div>
+          ) : copyDisabledMessage ? (
+            <p className="mt-5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+              {copyDisabledMessage}
+            </p>
+          ) : onCopyClick ? (
+            <>
+              <button
+                type="button"
+                onClick={onCopyClick}
+                className={`${btnPrimary} mt-5 w-full rounded-full py-3 text-[15px] uppercase tracking-wide`}
+              >
+                Set up copying
+              </button>
+              <p className="mt-2 text-sm text-[var(--app-text-muted)]">
+                Minimum investment {money(master.minCopyAmount)}
+              </p>
+            </>
+          ) : null}
         </div>
 
         {/* Right — stats + strategy */}
@@ -58,7 +95,7 @@ export default function MasterProfileCard({ master, details, onCopyClick }: Mast
             </div>
             <div>
               <p className="text-sm text-[var(--app-text-muted)]">Commission</p>
-              <p className="mt-1.5 text-lg font-bold text-[var(--app-text-primary)]">{master.commissionPct}%</p>
+              <p className="mt-1.5 text-lg font-bold text-[var(--app-text-primary)]">{master.commissionPct}% from copiers</p>
             </div>
             <div>
               <p className="text-sm text-[var(--app-text-muted)]">With Us</p>

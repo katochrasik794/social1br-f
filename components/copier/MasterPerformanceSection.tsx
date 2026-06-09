@@ -3,18 +3,28 @@
 import { useMemo, useState } from "react";
 import TimeRangePills, { type TimeRange } from "@/components/copier/TimeRangePills";
 import ProfitLossBar from "@/components/copier/ProfitLossBar";
+import type { MasterHistoryTradeRow, TopRatedMaster } from "@/lib/api/copier";
+import { tradesToPerformance } from "@/lib/copier/tradeHistoryTransforms";
 import { getPerformanceForRange } from "@/lib/mock/masterDetail";
-import type { TopRatedMaster } from "@/lib/mock/copier";
 import { pct } from "@/lib/utils";
 
 type MasterPerformanceSectionProps = {
   master: TopRatedMaster;
+  closedTrades?: MasterHistoryTradeRow[];
+  balance?: number;
 };
 
-export default function MasterPerformanceSection({ master }: MasterPerformanceSectionProps) {
+export default function MasterPerformanceSection({ master, closedTrades, balance }: MasterPerformanceSectionProps) {
   const [range, setRange] = useState<TimeRange>("3M");
+  const useReal = closedTrades != null;
 
-  const perf = useMemo(() => getPerformanceForRange(master, range), [master, range]);
+  const perf = useMemo(
+    () =>
+      useReal
+        ? tradesToPerformance(closedTrades, range, balance ?? master.aum ?? 0, master.copiers, master.copiersDelta)
+        : getPerformanceForRange(master, range),
+    [useReal, closedTrades, range, balance, master]
+  );
 
   return (
     <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-surface)] p-5 shadow-sm sm:p-6">

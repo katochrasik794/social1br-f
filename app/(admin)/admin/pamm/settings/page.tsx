@@ -7,7 +7,7 @@ export default function PammSettingsPage() {
   const [settings, setSettings] = useState(pammSettings);
 
   return (
-    <div className="mx-auto max-w-[2400px] space-y-6">
+    <div className="w-full min-w-0 space-y-6">
       <div><h1 className="text-2xl font-bold">PAMM Settings</h1><p className="text-sm text-[var(--app-text-secondary)]">Configure PAMM module settings</p></div>
       <section className="rounded-md border border-[var(--app-border)] bg-[var(--app-surface)] p-6 space-y-4">
         {[

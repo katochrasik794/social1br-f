@@ -52,6 +52,17 @@ export function computeYDomain(values: number[], steps = 5) {
   return { min, max, step: step || 1 };
 }
 
+/** Symmetric diverging domain for profit/loss bar charts (Power BI style). */
+export function computeDivergingYDomain(values: number[], steps = 5) {
+  if (!values.length) return { min: -100, max: 100, step: 50 };
+  const absMax = Math.max(...values.map((v) => Math.abs(v)), 1);
+  const rawStep = (absMax * 2) / steps;
+  const magnitude = 10 ** Math.floor(Math.log10(rawStep));
+  const step = Math.max(Math.ceil(rawStep / magnitude) * magnitude, 1);
+  const bound = Math.ceil(absMax / step) * step || step;
+  return { min: -bound, max: bound, step };
+}
+
 export function buildYTicks(min: number, max: number, step: number) {
   const ticks: number[] = [];
   for (let v = max; v >= min - step * 0.01; v -= step) ticks.push(v);

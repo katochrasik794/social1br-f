@@ -48,3 +48,31 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 export function getApiUrl() {
   return API_URL;
 }
+
+export async function apiUploadForm<T>(
+  path: string,
+  formData: FormData,
+  options: { tokenKey?: "user" | "admin"; method?: string } | "user" | "admin" = "user"
+): Promise<T> {
+  const tokenKey = typeof options === "string" ? options : (options.tokenKey ?? "user");
+  const method = typeof options === "string" ? "POST" : (options.method ?? "POST");
+
+  let authToken: string | null = null;
+  if (typeof window !== "undefined") {
+    authToken =
+      tokenKey === "admin" ? localStorage.getItem("adminToken") : localStorage.getItem("token");
+  }
+
+  const headers: Record<string, string> = {};
+  if (authToken) headers.Authorization = `Bearer ${authToken}`;
+
+  const res = await fetch(`${API_URL}/api${path}`, {
+    method,
+    headers,
+    body: formData,
+  });
+
+  const json = (await res.json()) as ApiResponse<T>;
+  if (!json.success) throw new Error(json.error || "Upload failed");
+  return json.data;
+}

@@ -11,18 +11,19 @@ type MainTab = "summary" | "history";
 type HistoryTab = "closed" | "open";
 
 type CopierSummaryHistoryPanelProps = {
-  masterId: number;
+  masterId: string | number;
 };
 
 const cardClass = "overflow-hidden rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] shadow-md";
 
 export default function CopierSummaryHistoryPanel({ masterId }: CopierSummaryHistoryPanelProps) {
+  const mockId = typeof masterId === "number" ? masterId : 1;
   const [mainTab, setMainTab] = useState<MainTab>("summary");
   const [historyTab, setHistoryTab] = useState<HistoryTab>("closed");
   const [period, setPeriod] = useState<ChartPeriod>("month");
 
-  const periodData = useMemo(() => getCopierSummaryForPeriod(masterId, period), [masterId, period]);
-  const bundle = useMemo(() => getCopierMasterBundle(masterId), [masterId]);
+  const periodData = useMemo(() => getCopierSummaryForPeriod(mockId, period), [mockId, period]);
+  const bundle = useMemo(() => getCopierMasterBundle(mockId), [mockId]);
 
   const tabs = [
     { id: "summary" as const, label: "Summary", icon: BarChart3 },

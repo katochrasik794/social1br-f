@@ -1,16 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import CopierSummaryRings from "@/components/copier/area/CopierSummaryRings";
 import DataTable, { type Column } from "@/components/ui/DataTable";
+import { accountStatusBadgeClass } from "@/components/copier/master/accountStatusStyles";
 import {
   getMasterAccountStats,
-  mockMasterSettings,
   type MasterAccountStatsBundle,
   type MasterAttachedAccount,
-  type MasterHistoryTrade,
-  type MasterSettings,
 } from "@/lib/mock/masterArea";
+import {
+  fetchMasterAccountHistory,
+  updateMasterAccountSettings,
+  type MasterHistoryTradeRow,
+  type MasterMeResponse,
+} from "@/lib/api/copier";
+import { computeSummaryFromTrades } from "@/lib/copier/summaryFromTrades";
 import { money, pct } from "@/lib/utils";
 
 type MainTab = "statistics" | "settings";
@@ -39,7 +44,7 @@ type HistoryRow = Record<string, unknown> & {
   profit: number;
 };
 
-function toHistoryRows(trades: MasterHistoryTrade[]): HistoryRow[] {
+function toHistoryRows(trades: MasterHistoryTradeRow[]): HistoryRow[] {
   return trades.map((t) => ({
     id: t.id,
     orderId: t.orderId,
@@ -67,23 +72,25 @@ function StackedCell({ primary, secondary }: { primary: string; secondary?: stri
   );
 }
 
-function AccountContextBar({ account }: { account: MasterAttachedAccount }) {
-  const archived = account.status === "Archived";
-
+function AccountContextBar({
+  account,
+  displayName,
+}: {
+  account: MasterAttachedAccount;
+  displayName?: string;
+}) {
+  const label = displayName?.trim() || account.displayName;
   return (
     <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface-muted)]/40 px-4 py-3">
       <div>
         <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--app-text-muted)]">Showing data for</p>
         <p className="mt-0.5 text-sm font-bold text-[var(--app-text-primary)]">
+          {label ? `${label} · ` : ""}
           {account.platform} · {account.login}
         </p>
       </div>
       <span
-        className={`rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
-          archived
-            ? "border-rose-300 text-rose-500 dark:border-rose-500/40"
-            : "border-[color:var(--app-primary-solid)]/40 text-[color:var(--app-primary-solid)]"
-        }`}
+        className={`rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${accountStatusBadgeClass(account.status)}`}
       >
         {account.status}
       </span>
@@ -126,11 +133,34 @@ function CommissionPayoutsPanel({ stats }: { stats: MasterAccountStatsBundle }) 
   );
 }
 
-function HistoryPanel({ mode, stats }: { mode: HistoryTab; stats: MasterAccountStatsBundle }) {
-  const rows = useMemo(
-    () => toHistoryRows(mode === "closed" ? stats.closedTrades : stats.openTrades),
-    [mode, stats]
-  );
+function HistoryPanel({
+  mode,
+  trades,
+  loading,
+  error,
+}: {
+  mode: HistoryTab;
+  trades: MasterHistoryTradeRow[];
+  loading?: boolean;
+  error?: string;
+}) {
+  const rows = useMemo(() => toHistoryRows(trades), [trades]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[200px] flex-1 items-center justify-center text-sm text-[var(--app-text-muted)]">
+        Loading trade history…
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex min-h-[200px] flex-1 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 px-4 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+        {error}
+      </div>
+    );
+  }
 
   const columns: Column<HistoryRow>[] = useMemo(
     () => [
@@ -215,12 +245,38 @@ function HistoryPanel({ mode, stats }: { mode: HistoryTab; stats: MasterAccountS
   );
 }
 
-function SummaryPanel({ stats }: { stats: MasterAccountStatsBundle }) {
-  const bottom = stats.summaryBottom;
+function SummaryPanel({
+  summaryStats,
+  summaryBottom,
+  loading,
+  error,
+}: {
+  summaryStats: MasterAccountStatsBundle["summaryStats"];
+  summaryBottom: MasterAccountStatsBundle["summaryBottom"];
+  loading?: boolean;
+  error?: string;
+}) {
+  if (loading) {
+    return (
+      <div className="flex min-h-[200px] items-center justify-center text-sm text-[var(--app-text-muted)]">
+        Loading summary…
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex min-h-[200px] items-center justify-center rounded-lg border border-rose-200 bg-rose-50 px-4 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+        {error}
+      </div>
+    );
+  }
+
+  const bottom = summaryBottom;
 
   return (
     <div className="space-y-5 overflow-y-auto">
-      <CopierSummaryRings stats={stats.summaryStats} />
+      <CopierSummaryRings stats={summaryStats} />
 
       <div className="flex flex-wrap items-center justify-center gap-3 border-t border-[var(--app-border)] pt-4 sm:gap-0">
         {[
@@ -253,63 +309,232 @@ function SummaryPanel({ stats }: { stats: MasterAccountStatsBundle }) {
   );
 }
 
-function SettingsPanel({ settings }: { settings: MasterSettings }) {
-  const fields = [
-    { label: "Display Name", value: settings.displayName },
-    { label: "Headline", value: settings.headline },
-    { label: "Strategy", value: settings.strategy, wide: true },
-    { label: "Commission", value: `${settings.commissionPct}%` },
-    { label: "Min Copy Amount", value: money(settings.minCopyAmount) },
-    { label: "Risk Level", value: settings.riskLevel },
-  ];
+type SettingsFormState = {
+  displayName: string;
+  headline: string;
+  strategySummary: string;
+  strategyDetail: string;
+  commissionPct: number;
+  minCopyAmount: number;
+  riskProfile: "low" | "medium" | "high";
+  publicProfile: boolean;
+  acceptNewCopiers: boolean;
+};
+
+function settingsFromAccount(account: MasterAttachedAccount): SettingsFormState {
+  return {
+    displayName: account.displayName ?? account.login,
+    headline: account.headline ?? "",
+    strategySummary: account.strategy ?? "",
+    strategyDetail: account.strategyDetail ?? "",
+    commissionPct: account.commissionPct ?? account.commissionPerLot,
+    minCopyAmount: account.minCopyAmount ?? 25,
+    riskProfile: account.riskProfile ?? "medium",
+    publicProfile: account.publicProfile ?? true,
+    acceptNewCopiers: account.acceptNewCopiers ?? true,
+  };
+}
+
+function SettingsPanel({
+  account,
+  accountId,
+  initial,
+  onSaved,
+}: {
+  account: MasterAttachedAccount;
+  accountId: string;
+  initial: SettingsFormState;
+  onSaved?: (updated?: MasterMeResponse) => void | Promise<void>;
+}) {
+  const [form, setForm] = useState(initial);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  useEffect(() => {
+    setForm(initial);
+    setError("");
+    setSuccess("");
+  }, [initial, accountId]);
+
+  function set<K extends keyof SettingsFormState>(key: K, value: SettingsFormState[K]) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+    setSuccess("");
+  }
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError("");
+    setSuccess("");
+    try {
+      const updated = await updateMasterAccountSettings(accountId, {
+        displayName: form.displayName.trim(),
+        headline: form.headline.trim(),
+        strategySummary: form.strategySummary.trim(),
+        strategyDetail: form.strategyDetail.trim() || undefined,
+        riskProfile: form.riskProfile,
+        commissionPct: form.commissionPct,
+        minCopyAmount: form.minCopyAmount,
+        publicProfile: form.publicProfile,
+        acceptNewCopiers: form.acceptNewCopiers,
+      });
+      setSuccess("Settings saved.");
+      await onSaved?.(updated);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save settings");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
-    <div className="space-y-6 overflow-y-auto p-1">
+    <form onSubmit={handleSave} className="space-y-6 overflow-y-auto p-1">
+      <AccountContextBar account={account} displayName={form.displayName} />
       <div className="grid gap-4 sm:grid-cols-2">
-        {fields.map((f) => (
-          <div key={f.label} className={f.wide ? "sm:col-span-2" : ""}>
-            <label className="text-[10px] font-semibold uppercase tracking-wide text-[var(--app-text-muted)]">{f.label}</label>
-            <input
-              readOnly
-              defaultValue={f.value}
-              className="mt-1.5 w-full rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)]/40 px-3 py-2 text-sm text-[var(--app-text-primary)] outline-none focus:border-[color:var(--app-primary-solid)]"
-            />
-          </div>
-        ))}
+        <div>
+          <label className="text-[10px] font-semibold uppercase tracking-wide text-[var(--app-text-muted)]">Display name</label>
+          <input
+            required
+            value={form.displayName}
+            onChange={(e) => set("displayName", e.target.value)}
+            className="mt-1.5 w-full rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-2 text-sm text-[var(--app-text-primary)] outline-none focus:border-[color:var(--app-primary-solid)]"
+          />
+        </div>
+        <div>
+          <label className="text-[10px] font-semibold uppercase tracking-wide text-[var(--app-text-muted)]">Headline</label>
+          <input
+            required
+            value={form.headline}
+            onChange={(e) => set("headline", e.target.value)}
+            className="mt-1.5 w-full rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-2 text-sm text-[var(--app-text-primary)] outline-none focus:border-[color:var(--app-primary-solid)]"
+          />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="text-[10px] font-semibold uppercase tracking-wide text-[var(--app-text-muted)]">Strategy</label>
+          <textarea
+            required
+            rows={4}
+            value={form.strategySummary}
+            onChange={(e) => set("strategySummary", e.target.value)}
+            className="mt-1.5 w-full rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-2 text-sm text-[var(--app-text-primary)] outline-none focus:border-[color:var(--app-primary-solid)]"
+          />
+        </div>
+        <div>
+          <label className="text-[10px] font-semibold uppercase tracking-wide text-[var(--app-text-muted)]">Commission (%)</label>
+          <input
+            type="number"
+            required
+            min={5}
+            max={50}
+            value={form.commissionPct}
+            onChange={(e) => set("commissionPct", Number(e.target.value))}
+            className="mt-1.5 w-full rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-2 text-sm text-[var(--app-text-primary)] outline-none focus:border-[color:var(--app-primary-solid)]"
+          />
+        </div>
+        <div>
+          <label className="text-[10px] font-semibold uppercase tracking-wide text-[var(--app-text-muted)]">Min copy amount</label>
+          <input
+            type="number"
+            required
+            min={25}
+            step={25}
+            value={form.minCopyAmount}
+            onChange={(e) => set("minCopyAmount", Number(e.target.value))}
+            className="mt-1.5 w-full rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-2 text-sm text-[var(--app-text-primary)] outline-none focus:border-[color:var(--app-primary-solid)]"
+          />
+        </div>
+        <div>
+          <label className="text-[10px] font-semibold uppercase tracking-wide text-[var(--app-text-muted)]">Risk level</label>
+          <select
+            value={form.riskProfile}
+            onChange={(e) => set("riskProfile", e.target.value as SettingsFormState["riskProfile"])}
+            className="mt-1.5 w-full rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] px-3 py-2 text-sm text-[var(--app-text-primary)] outline-none focus:border-[color:var(--app-primary-solid)]"
+          >
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-6">
-        {[
-          { label: "Public profile", checked: settings.publicProfile },
-          { label: "Accept new copiers", checked: settings.acceptNewCopiers },
-        ].map((toggle) => (
-          <label key={toggle.label} className="flex cursor-pointer items-center gap-2.5 text-sm text-[var(--app-text-primary)]">
-            <input
-              type="checkbox"
-              defaultChecked={toggle.checked}
-              className="h-4 w-4 rounded border-[var(--app-border)] accent-[color:var(--app-primary-solid)]"
-            />
-            {toggle.label}
-          </label>
-        ))}
+        <label className="flex cursor-pointer items-center gap-2.5 text-sm text-[var(--app-text-primary)]">
+          <input
+            type="checkbox"
+            checked={form.publicProfile}
+            onChange={(e) => set("publicProfile", e.target.checked)}
+            className="h-4 w-4 rounded border-[var(--app-border)] accent-[color:var(--app-primary-solid)]"
+          />
+          Public profile
+        </label>
+        <label className="flex cursor-pointer items-center gap-2.5 text-sm text-[var(--app-text-primary)]">
+          <input
+            type="checkbox"
+            checked={form.acceptNewCopiers}
+            onChange={(e) => set("acceptNewCopiers", e.target.checked)}
+            className="h-4 w-4 rounded border-[var(--app-border)] accent-[color:var(--app-primary-solid)]"
+          />
+          Accept new copiers
+        </label>
       </div>
 
+      {error ? <p className="text-sm text-rose-600">{error}</p> : null}
+      {success ? <p className="text-sm font-medium text-green-600">{success}</p> : null}
+
       <button
-        type="button"
-        className="rounded-lg bg-[color:var(--app-primary-solid)] px-5 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
+        type="submit"
+        disabled={saving}
+        className="rounded-lg bg-[color:var(--app-primary-solid)] px-5 py-2.5 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-50"
       >
-        Save Settings
+        {saving ? "Saving…" : "Save settings"}
       </button>
-    </div>
+    </form>
   );
 }
 
-export default function MasterStatsSettingsPanel({ account }: { account: MasterAttachedAccount }) {
+export default function MasterStatsSettingsPanel({
+  account,
+  onSaved,
+}: {
+  account: MasterAttachedAccount;
+  onSaved?: (updated?: MasterMeResponse) => void | Promise<void>;
+}) {
   const [mainTab, setMainTab] = useState<MainTab>("statistics");
   const [statsTab, setStatsTab] = useState<StatsTab>("commission");
   const [historyTab, setHistoryTab] = useState<HistoryTab>("closed");
+  const [closedTrades, setClosedTrades] = useState<MasterHistoryTradeRow[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+
+  const loadHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    setHistoryError("");
+    try {
+      const data = await fetchMasterAccountHistory(account.id);
+      setClosedTrades(data.closedTrades);
+    } catch (err) {
+      setClosedTrades([]);
+      setHistoryError(err instanceof Error ? err.message : "Failed to load trade history");
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [account.id]);
+
+  useEffect(() => {
+    loadHistory();
+  }, [loadHistory]);
 
   const accountStats = useMemo(() => getMasterAccountStats(account.id), [account.id]);
+
+  const tradeSummary = useMemo(
+    () =>
+      computeSummaryFromTrades(closedTrades, {
+        balance: account.balance ?? 0,
+        equity: account.equity ?? 0,
+      }),
+    [closedTrades, account.balance, account.equity]
+  );
 
   const statsTabs = useMemo(
     () =>
@@ -337,8 +562,8 @@ export default function MasterStatsSettingsPanel({ account }: { account: MasterA
             onClick={() => setMainTab(tab.id)}
             className={`py-4 text-sm font-bold uppercase tracking-[0.12em] transition ${
               mainTab === tab.id
-                ? "bg-[var(--app-surface)] text-[var(--app-text-primary)]"
-                : "bg-[var(--app-surface-muted)]/60 text-[var(--app-text-muted)] hover:text-[var(--app-text-secondary)]"
+                ? "bg-green-600 text-white"
+                : "bg-[var(--app-surface-muted)]/60 text-[var(--app-text-muted)] hover:bg-green-50 hover:text-green-700"
             }`}
           >
             {tab.label}
@@ -372,7 +597,14 @@ export default function MasterStatsSettingsPanel({ account }: { account: MasterA
             <AccountContextBar account={account} />
 
             {statsTab === "commission" ? <CommissionPayoutsPanel stats={accountStats} /> : null}
-            {statsTab === "summary" ? <SummaryPanel stats={accountStats} /> : null}
+            {statsTab === "summary" ? (
+              <SummaryPanel
+                summaryStats={tradeSummary.summaryStats}
+                summaryBottom={tradeSummary.summaryBottom}
+                loading={historyLoading}
+                error={historyError}
+              />
+            ) : null}
             {statsTab === "history" ? (
               <div className="flex min-h-0 flex-1 flex-col">
                 <div className="mb-4 flex shrink-0 justify-center gap-8">
@@ -391,17 +623,24 @@ export default function MasterStatsSettingsPanel({ account }: { account: MasterA
                     </button>
                   ))}
                 </div>
-                <HistoryPanel mode={historyTab} stats={accountStats} />
+                <HistoryPanel
+                  mode={historyTab}
+                  trades={historyTab === "closed" ? closedTrades : []}
+                  loading={historyLoading}
+                  error={historyError}
+                />
               </div>
             ) : null}
           </div>
         </>
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
-          <AccountContextBar account={account} />
-          <div className="mt-4">
-            <SettingsPanel settings={mockMasterSettings} />
-          </div>
+          <SettingsPanel
+            account={account}
+            accountId={account.id}
+            initial={settingsFromAccount(account)}
+            onSaved={onSaved}
+          />
         </div>
       )}
     </div>

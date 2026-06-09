@@ -10,6 +10,9 @@ const breadcrumbMap: Record<string, string> = {
   investor: "Investor Area",
   manager: "Manager Area",
   mam: "MAM",
+  accounts: "Accounts",
+  deposit: "Deposit",
+  withdrawal: "Withdrawal",
 };
 
 export function buildUserBreadcrumbs(pathname: string) {

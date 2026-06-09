@@ -28,6 +28,12 @@ export type Mt5Group = {
   maxDeposit: number | null;
   minWithdrawal: number | null;
   maxWithdrawal: number | null;
+  badgeLabel: string | null;
+  planDescription: string | null;
+  spreadFrom: string | null;
+  maxLeverageDisplay: number | null;
+  commissionText: string | null;
+  minLotSize: string | null;
   isActive: boolean;
   rawJson: Record<string, unknown>;
   lastSyncedAt: string;
@@ -127,6 +133,12 @@ export async function updateMt5Group(
     maxDeposit: number | null;
     minWithdrawal: number | null;
     maxWithdrawal: number | null;
+    badgeLabel: string | null;
+    planDescription: string | null;
+    spreadFrom: string | null;
+    maxLeverageDisplay: number | null;
+    commissionText: string | null;
+    minLotSize: string | null;
     isActive: boolean;
   }>
 ) {

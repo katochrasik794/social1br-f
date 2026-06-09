@@ -1,6 +1,6 @@
 import { DollarSign, Percent, TrendingUp, Users, Wallet } from "lucide-react";
-import { mockTopRatedStats } from "@/lib/mock/copier";
 import { pct } from "@/lib/utils";
+import type { TopRatedMaster } from "@/lib/api/copier";
 
 function compactMoney(v: number) {
   if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(2)}M`;
@@ -8,7 +8,25 @@ function compactMoney(v: number) {
   return `$${v.toFixed(2)}`;
 }
 
-const STATS = [
+function buildStats(masters: TopRatedMaster[]) {
+  const totalAum = masters.reduce((s, m) => s + (m.aum ?? 0), 0);
+  const avgGain = masters.length ? masters.reduce((s, m) => s + m.gainPct, 0) / masters.length : 0;
+  const profitablePct = masters.length
+    ? (masters.filter((m) => m.gainPct > 0).length / masters.length) * 100
+    : 0;
+  return {
+    mastersShown: masters.length,
+    totalProfit: masters.reduce((s, m) => s + m.profit, 0),
+    averageGainPct: avgGain,
+    profitableMastersPct: profitablePct,
+    totalCopiedFunds: totalAum,
+  };
+}
+
+export default function TopRatedStatsBar({ masters = [] }: { masters?: TopRatedMaster[] }) {
+  const mockTopRatedStats = buildStats(masters);
+
+  const STATS = [
   {
     icon: Users,
     color: "#16a34a",
@@ -46,7 +64,6 @@ const STATS = [
   },
 ] as const;
 
-export default function TopRatedStatsBar() {
   return (
     <div className="overflow-x-auto rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] p-5 shadow-md sm:p-6">
       <div className="flex min-w-[720px] items-center sm:min-w-0">

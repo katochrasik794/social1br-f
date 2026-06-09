@@ -21,7 +21,7 @@ export default function MamInvestorPage() {
 
   return (
     <PageContainer>
-      <div className="mx-auto max-w-[2400px] space-y-6">
+      <div className="w-full min-w-0 space-y-6">
         <InlineBreadcrumb items={[{ label: "Dashboard", href: "/dashboard" }, { label: "MAM" }, { label: "Investor Area" }]} />
         <HeroCard icon={Network} title="MAM Investor Area" subtitle="Discover managers and link your MT5 accounts" />
 

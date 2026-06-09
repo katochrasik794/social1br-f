@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { ArrowDownRight, ArrowUpRight, Gift } from "lucide-react";
 import GroupedHistoryTable from "@/components/copier/GroupedHistoryTable";
+import type { MasterHistoryTradeRow } from "@/lib/api/copier";
+import { tradesToClosedOrders } from "@/lib/copier/tradeHistoryTransforms";
 import {
   getMasterBalanceOps,
   getMasterClosedOrders,
@@ -51,12 +53,24 @@ function ProfitCell({ value }: { value: number }) {
   );
 }
 
-export default function MasterHistoryPanel({ masterId }: { masterId: number }) {
+type MasterHistoryPanelProps = {
+  masterId?: string | number;
+  closedTrades?: MasterHistoryTradeRow[];
+  loading?: boolean;
+  error?: string;
+};
+
+export default function MasterHistoryPanel({ masterId, closedTrades, loading, error }: MasterHistoryPanelProps) {
+  const mockId = typeof masterId === "number" ? masterId : 0;
+  const useReal = closedTrades != null;
   const [tab, setTab] = useState<HistoryTab>("closed");
 
-  const closedOrders = useMemo(() => getMasterClosedOrders(masterId), [masterId]);
-  const openOrders = useMemo(() => getMasterOpenOrders(masterId), [masterId]);
-  const balanceOps = useMemo(() => getMasterBalanceOps(masterId), [masterId]);
+  const closedOrders = useMemo(
+    () => (useReal ? tradesToClosedOrders(closedTrades) : getMasterClosedOrders(mockId)),
+    [useReal, closedTrades, mockId]
+  );
+  const openOrders = useMemo(() => (useReal ? [] : getMasterOpenOrders(mockId)), [useReal, mockId]);
+  const balanceOps = useMemo(() => (useReal ? [] : getMasterBalanceOps(mockId)), [useReal, mockId]);
 
   const closedGroups = useMemo(() => groupByDate(closedOrders), [closedOrders]);
   const openGroups = useMemo(() => groupByDate(openOrders), [openOrders]);
@@ -91,7 +105,17 @@ export default function MasterHistoryPanel({ masterId }: { masterId: number }) {
       </div>
 
       <div className="mt-2">
-        {tab === "closed" ? (
+        {loading ? (
+          <div className="flex min-h-[160px] items-center justify-center text-sm text-[var(--app-text-muted)]">
+            Loading trade history…
+          </div>
+        ) : error ? (
+          <div className="flex min-h-[160px] items-center justify-center rounded-lg border border-rose-200 bg-rose-50 px-4 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+            {error}
+          </div>
+        ) : null}
+
+        {!loading && !error && tab === "closed" && closedOrders.length > 0 ? (
           <GroupedHistoryTable<MasterClosedOrder>
             groups={closedGroups}
             columns={[
@@ -107,7 +131,13 @@ export default function MasterHistoryPanel({ masterId }: { masterId: number }) {
           />
         ) : null}
 
-        {tab === "open" ? (
+        {!loading && !error && tab === "closed" && closedOrders.length === 0 ? (
+          <div className="flex min-h-[120px] items-center justify-center text-sm text-[var(--app-text-muted)]">
+            No closed orders
+          </div>
+        ) : null}
+
+        {!loading && !error && tab === "open" && openOrders.length > 0 ? (
           <GroupedHistoryTable<MasterOpenOrder>
             groups={openGroups}
             columns={[
@@ -123,7 +153,13 @@ export default function MasterHistoryPanel({ masterId }: { masterId: number }) {
           />
         ) : null}
 
-        {tab === "balance" ? (
+        {!loading && !error && tab === "open" && openOrders.length === 0 ? (
+          <div className="flex min-h-[120px] items-center justify-center text-sm text-[var(--app-text-muted)]">
+            No open orders
+          </div>
+        ) : null}
+
+        {!loading && !error && tab === "balance" && balanceOps.length > 0 ? (
           <GroupedHistoryTable<MasterBalanceOp>
             groups={balanceGroups}
             columns={[
@@ -156,6 +192,12 @@ export default function MasterHistoryPanel({ masterId }: { masterId: number }) {
               },
             ]}
           />
+        ) : null}
+
+        {!loading && !error && tab === "balance" && balanceOps.length === 0 ? (
+          <div className="flex min-h-[120px] items-center justify-center text-sm text-[var(--app-text-muted)]">
+            No balance operations
+          </div>
         ) : null}
       </div>
     </div>

@@ -15,7 +15,7 @@ export default function PammManagerPage() {
   if (status === "none") {
     return (
       <PageContainer>
-        <div className="mx-auto max-w-[2400px] space-y-6">
+        <div className="w-full min-w-0 space-y-6">
           <InlineBreadcrumb items={[{ label: "Dashboard", href: "/dashboard" }, { label: "PAMM" }, { label: "Manager Area" }]} />
           <HeroCard icon={Layers} title="Become a PAMM Manager" subtitle="Apply to run a managed investment pool" />
           <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-surface)] p-6 space-y-4">
@@ -36,7 +36,7 @@ export default function PammManagerPage() {
   if (status === "pending") {
     return (
       <PageContainer>
-        <div className="mx-auto max-w-[2400px] rounded-md border border-amber-200 bg-amber-50 p-6 dark:border-amber-500/30 dark:bg-amber-500/10">
+        <div className="w-full min-w-0 rounded-md border border-amber-200 bg-amber-50 p-6 dark:border-amber-500/30 dark:bg-amber-500/10">
           <h2 className="font-bold text-amber-800 dark:text-amber-300">Application Pending</h2>
           <p className="mt-2 text-sm">Your PAMM manager application is under review.</p>
         </div>
@@ -48,7 +48,7 @@ export default function PammManagerPage() {
 
   return (
     <PageContainer>
-      <div className="mx-auto max-w-[2400px] space-y-6">
+      <div className="w-full min-w-0 space-y-6">
         <InlineBreadcrumb items={[{ label: "Dashboard", href: "/dashboard" }, { label: "PAMM" }, { label: "Manager Area" }]} />
         <HeroCard icon={Layers} title={profile.poolName} subtitle={profile.strategy} />
 

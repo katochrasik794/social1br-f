@@ -15,7 +15,7 @@ export default function MamManagerPage() {
   if (status === "none") {
     return (
       <PageContainer>
-        <div className="mx-auto max-w-[2400px] space-y-6">
+        <div className="w-full min-w-0 space-y-6">
           <InlineBreadcrumb items={[{ label: "Dashboard", href: "/dashboard" }, { label: "MAM" }, { label: "Manager Area" }]} />
           <HeroCard icon={Network} title="Become a MAM Manager" subtitle="Apply to manage investor accounts" />
           <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-surface)] p-6 space-y-4">
@@ -32,7 +32,7 @@ export default function MamManagerPage() {
   if (status === "pending") {
     return (
       <PageContainer>
-        <div className="mx-auto max-w-[2400px] rounded-md border border-amber-200 bg-amber-50 p-6 dark:border-amber-500/30 dark:bg-amber-500/10">
+        <div className="w-full min-w-0 rounded-md border border-amber-200 bg-amber-50 p-6 dark:border-amber-500/30 dark:bg-amber-500/10">
           <h2 className="font-bold text-amber-800 dark:text-amber-300">Application Pending</h2>
           <p className="mt-2 text-sm">Your MAM manager application is under review.</p>
         </div>
@@ -44,7 +44,7 @@ export default function MamManagerPage() {
 
   return (
     <PageContainer>
-      <div className="mx-auto max-w-[2400px] space-y-6">
+      <div className="w-full min-w-0 space-y-6">
         <InlineBreadcrumb items={[{ label: "Dashboard", href: "/dashboard" }, { label: "MAM" }, { label: "Manager Area" }]} />
         <HeroCard icon={Network} title={profile.displayName} subtitle={profile.strategy} />
 

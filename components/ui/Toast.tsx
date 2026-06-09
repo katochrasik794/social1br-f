@@ -85,6 +85,11 @@ function ToastCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => vo
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const showToast = useCallback((message: string, type: ToastType = "success") => {
     const id = crypto.randomUUID();
@@ -98,7 +103,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      {typeof document !== "undefined"
+      {mounted
         ? createPortal(
             <div className="pointer-events-none fixed bottom-6 right-6 z-[120] flex flex-col gap-3">
               {toasts.map((toast) => (

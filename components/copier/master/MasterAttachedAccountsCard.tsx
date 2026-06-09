@@ -2,13 +2,14 @@
 
 import { Fragment, useState } from "react";
 import { ChevronDown } from "lucide-react";
+import { accountStatusBadgeClass } from "@/components/copier/master/accountStatusStyles";
 import type { MasterAttachedAccount } from "@/lib/mock/masterArea";
 import { money, pct } from "@/lib/utils";
 
 type MasterAttachedAccountsCardProps = {
   accounts: MasterAttachedAccount[];
-  selectedId: number;
-  onSelect: (id: number) => void;
+  selectedId: string;
+  onSelect: (id: string) => void;
 };
 
 function StatCell({
@@ -36,7 +37,6 @@ export default function MasterAttachedAccountsCard({ accounts, selectedId, onSel
 
   const profitNegative = account.profit < 0;
   const gainNegative = account.gainPct < 0;
-  const archived = account.status === "Archived";
 
   const stats = [
     {
@@ -104,9 +104,10 @@ export default function MasterAttachedAccountsCard({ accounts, selectedId, onSel
                       }`}
                     >
                       <span>
+                        {a.displayName ? `${a.displayName} · ` : ""}
                         {a.platform} · {a.login}
                       </span>
-                      <span className={`text-[10px] font-semibold uppercase ${a.status === "Archived" ? "text-rose-500" : "text-[color:var(--app-primary-solid)]"}`}>
+                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${accountStatusBadgeClass(a.status)}`}>
                         {a.status}
                       </span>
                     </button>
@@ -138,11 +139,7 @@ export default function MasterAttachedAccountsCard({ accounts, selectedId, onSel
         {/* Status badge */}
         <div className="flex shrink-0 items-center justify-end gap-2 sm:pl-4">
           <span
-            className={`rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
-              archived
-                ? "border-rose-300 text-rose-500 dark:border-rose-500/40"
-                : "border-[color:var(--app-primary-solid)]/40 text-[color:var(--app-primary-solid)]"
-            }`}
+            className={`rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${accountStatusBadgeClass(account.status)}`}
           >
             {account.status}
           </span>

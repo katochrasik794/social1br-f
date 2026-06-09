@@ -1,7 +1,16 @@
 import Link from "next/link";
 
-export default function PageContainer({ children }: { children: React.ReactNode }) {
-  return <div className="mx-auto w-full min-w-0">{children}</div>;
+/** Full-width responsive shell — stretches with the main content area on every screen size. */
+export const pageShellClass = "w-full min-w-0";
+
+export default function PageContainer({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return <div className={`${pageShellClass} ${className}`.trim()}>{children}</div>;
 }
 
 export function HeroCard({

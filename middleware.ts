@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const USER_PROTECTED = ["/dashboard", "/copier", "/pamm", "/mam"];
+const USER_PROTECTED = ["/dashboard", "/copier", "/pamm", "/mam", "/accounts"];
 const ADMIN_PROTECTED_PREFIX = "/admin";
 const ADMIN_PUBLIC = ["/admin/login"];
 
@@ -36,5 +36,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/copier/:path*", "/pamm/:path*", "/mam/:path*", "/admin/:path*"],
+  matcher: ["/dashboard/:path*", "/copier/:path*", "/pamm/:path*", "/mam/:path*", "/accounts/:path*", "/admin/:path*"],
 };

@@ -19,7 +19,7 @@ export default function PammInvestorPage() {
 
   return (
     <PageContainer>
-      <div className="mx-auto max-w-[2400px] space-y-6">
+      <div className="w-full min-w-0 space-y-6">
         <InlineBreadcrumb items={[{ label: "Dashboard", href: "/dashboard" }, { label: "PAMM" }, { label: "Investor Area" }]} />
         <HeroCard icon={Layers} title="PAMM Investor Area" subtitle="Browse pools and manage your allocations" />
 

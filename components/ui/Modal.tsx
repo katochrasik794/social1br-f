@@ -30,7 +30,7 @@ export default function Modal({ open, onClose, title, subtitle, children, wide }
       <button type="button" aria-label="Close" className="absolute inset-0 bg-black/75" onClick={onClose} />
       <div
         className={`relative z-[81] max-h-[92vh] w-full overflow-hidden rounded-md border border-[var(--app-border)] bg-[var(--app-surface)] shadow-xl ${
-          wide ? "max-w-6xl" : "max-w-md"
+          wide ? "max-w-4xl" : "max-w-md"
         }`}
         role="dialog"
         aria-modal="true"

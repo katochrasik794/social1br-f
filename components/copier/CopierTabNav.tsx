@@ -2,16 +2,23 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useMasterProfile } from "@/providers/MasterProfileProvider";
 
-const TABS = [
+const BASE_TABS = [
   { label: "Top Rated", href: "/copier/rating", match: (p: string) => p.startsWith("/copier/rating") || p === "/copier/list" },
   { label: "Copier Area", href: "/copier/area", match: (p: string) => p.startsWith("/copier/area") },
-  { label: "Master Area", href: "/copier/master", match: (p: string) => p.startsWith("/copier/master") },
+  { label: "Master Area", href: "/copier/master", match: (p: string) => p.startsWith("/copier/master"), dynamicLabel: true },
   { label: "Terms & Conditions", href: "/copier/terms", match: (p: string) => p.startsWith("/copier/terms") },
 ];
 
 export default function CopierTabNav() {
   const pathname = usePathname();
+  const { status: masterStatus } = useMasterProfile();
+  const masterTabLabel =
+    masterStatus === "approved" || masterStatus === "pending" ? "Master Area" : "Become Master";
+  const TABS = BASE_TABS.map((tab) =>
+    tab.dynamicLabel ? { ...tab, label: masterTabLabel } : tab
+  );
 
   return (
     <nav className="app-shell-panel border-b">

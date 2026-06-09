@@ -1,6 +1,6 @@
 export type CopierMasterHistoryEntry = {
   id: string;
-  masterId: number;
+  masterId: string | number;
   masterName: string;
   expertise: string;
   profit: number;

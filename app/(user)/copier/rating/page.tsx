@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Search,
@@ -23,10 +23,17 @@ import ProfitLossBar from "@/components/copier/ProfitLossBar";
 import ExpertiseBadge from "@/components/copier/ExpertiseBadge";
 import TopRatedStatsBar from "@/components/copier/TopRatedStatsBar";
 import {
-  mockTopRatedMasters,
-  mockTradingAccounts,
+  createCopierSubscription,
+  fetchTopRatedMasters,
   type TopRatedMaster,
-} from "@/lib/mock/copier";
+} from "@/lib/api/copier";
+import {
+  filterCopyEligibleAccounts,
+  fullAccountAllocation,
+  isOwnMasterProfile,
+} from "@/lib/copier/copySetup";
+import { useMasterProfile } from "@/providers/MasterProfileProvider";
+import { fetchTradingAccounts, type TradingAccount } from "@/lib/api/trading";
 import { money, pct } from "@/lib/utils";
 
 function riskScoreColor(score: number) {
@@ -98,7 +105,7 @@ function MasterCard({
       </div>
       <div className="mt-5 flex items-center justify-between text-sm font-bold">
         <span className="text-[var(--app-text-muted)]">{master.copiers} copiers</span>
-        <span className="text-[var(--app-text-secondary)]">{master.commissionPct}% fee</span>
+        <span className="text-[var(--app-text-secondary)]">{master.commissionPct}% from copier profit</span>
       </div>
       <div className="mt-5 flex gap-2">
         <button type="button" onClick={onCopy} className={`${btnPrimary} flex-1`}>
@@ -120,6 +127,7 @@ const viewBtnIdle = "text-[var(--app-text-muted)]";
 
 export default function TopRatedPage() {
   const router = useRouter();
+  const { data: masterMe } = useMasterProfile();
   const tableRef = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<"grid" | "table">("table");
   const [search, setSearch] = useState("");
@@ -130,21 +138,100 @@ export default function TopRatedPage() {
   const [minInvestment, setMinInvestment] = useState("25");
   const [minExpertise, setMinExpertise] = useState("any");
   const [freeTrialOnly, setFreeTrialOnly] = useState(false);
+  const [masters, setMasters] = useState<TopRatedMaster[]>([]);
+  const [tradingAccounts, setTradingAccounts] = useState<TradingAccount[]>([]);
+  const [loading, setLoading] = useState(true);
   const [copyMaster, setCopyMaster] = useState<TopRatedMaster | null>(null);
+  const [copySubmitting, setCopySubmitting] = useState(false);
+  const [copyError, setCopyError] = useState("");
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [copyForm, setCopyForm] = useState({
-    accountId: mockTradingAccounts[0].id,
+    accountId: "",
     allocation: 5000,
-    copyMode: "proportional",
+    copyMode: "proportional" as "proportional" | "fixed",
     lotMultiplier: 1,
     dailyLossLimit: 5,
   });
 
-  function goToMaster(id: number) {
-    router.push(`/copier/rating/${id}`);
+  useEffect(() => {
+    Promise.all([fetchTopRatedMasters(), fetchTradingAccounts()])
+      .then(([mastersList, accounts]) => {
+        setMasters(mastersList);
+        setTradingAccounts(accounts);
+      })
+      .catch(() => {
+        setMasters([]);
+        setTradingAccounts([]);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  function goToMaster(master: TopRatedMaster) {
+    const qs = master.tradingAccountId ? `?account=${encodeURIComponent(master.tradingAccountId)}` : "";
+    router.push(`/copier/rating/${master.id}${qs}`);
+  }
+
+  const eligibleAccounts = useMemo(
+    () => filterCopyEligibleAccounts(tradingAccounts, masterMe),
+    [tradingAccounts, masterMe]
+  );
+
+  const copyingOwnMaster = copyMaster ? isOwnMasterProfile(masterMe, copyMaster.id) : false;
+
+  useEffect(() => {
+    if (!eligibleAccounts.length) {
+      setCopyForm((f) => ({ ...f, accountId: "", allocation: 0 }));
+      return;
+    }
+    setCopyForm((f) => {
+      const keep = eligibleAccounts.find((a) => a.id === f.accountId);
+      const pick = keep ?? eligibleAccounts[0];
+      return { ...f, accountId: pick.id, allocation: fullAccountAllocation(pick) };
+    });
+  }, [eligibleAccounts]);
+
+  function handleCopyAccountChange(accountId: string) {
+    const acc = eligibleAccounts.find((a) => a.id === accountId);
+    setCopyForm((f) => ({
+      ...f,
+      accountId,
+      allocation: fullAccountAllocation(acc),
+    }));
+  }
+
+  async function handleStartCopying() {
+    if (!copyMaster || !copyForm.accountId) return;
+    if (copyingOwnMaster) {
+      setCopyError("You cannot copy your own master account.");
+      return;
+    }
+    if (!termsAccepted) {
+      setCopyError("Please accept the copy trading terms.");
+      return;
+    }
+    setCopySubmitting(true);
+    setCopyError("");
+    try {
+      await createCopierSubscription({
+        masterId: copyMaster.id,
+        tradingAccountId: copyForm.accountId,
+        allocation: copyForm.allocation,
+        copyMode: copyForm.copyMode,
+        lotMultiplier: copyForm.lotMultiplier,
+        dailyLossLimitPct: copyForm.dailyLossLimit,
+        termsAccepted: true,
+      });
+      setCopyMaster(null);
+      router.push("/copier/area");
+    } catch (err) {
+      setCopyError(err instanceof Error ? err.message : "Failed to start copying");
+    } finally {
+      setCopySubmitting(false);
+    }
   }
 
   const filtered = useMemo(() => {
-    let rows = [...mockTopRatedMasters];
+    let rows = [...masters];
 
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -180,10 +267,20 @@ export default function TopRatedPage() {
     }
 
     return rows;
-  }, [search, minInvestment, minExpertise, freeTrialOnly, sortBy]);
+  }, [masters, search, minInvestment, minExpertise, freeTrialOnly, sortBy]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
+
+  if (loading) {
+    return (
+      <PageContainer>
+        <div className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] p-12 text-center text-sm font-medium text-[var(--app-text-muted)]">
+          Loading masters…
+        </div>
+      </PageContainer>
+    );
+  }
 
   return (
     <PageContainer>
@@ -285,7 +382,7 @@ export default function TopRatedPage() {
           </div>
 
           {/* Stats row */}
-          <TopRatedStatsBar />
+          <TopRatedStatsBar masters={masters} />
 
           {/* Table / Grid */}
           <div ref={tableRef} className={`overflow-hidden ${cardClass}`}>
@@ -310,7 +407,12 @@ export default function TopRatedPage() {
             {view === "grid" ? (
               <div className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6 xl:grid-cols-3">
                 {paginated.map((m) => (
-                  <MasterCard key={m.id} master={m} onCopy={() => setCopyMaster(m)} onView={() => goToMaster(m.id)} />
+                  <MasterCard
+                    key={m.linkId ?? `${m.id}-${m.tradingAccountId ?? m.rank}`}
+                    master={m}
+                    onCopy={() => setCopyMaster(m)}
+                    onView={() => goToMaster(m)}
+                  />
                 ))}
               </div>
             ) : (
@@ -331,8 +433,8 @@ export default function TopRatedPage() {
                   <tbody>
                     {paginated.map((m, i) => (
                       <tr
-                        key={m.id}
-                        onClick={() => goToMaster(m.id)}
+                        key={m.linkId ?? `${m.id}-${m.tradingAccountId ?? m.rank}`}
+                        onClick={() => goToMaster(m)}
                         className={`cursor-pointer border-b border-[var(--app-border)] last:border-0 hover:bg-[var(--app-surface-muted)]/60 ${i % 2 === 1 ? "bg-[var(--app-surface-muted)]/40" : "bg-[var(--app-surface)]"}`}
                       >
                         <td className="px-5 py-5 sm:px-6 sm:py-6">
@@ -388,7 +490,7 @@ export default function TopRatedPage() {
                             </button>
                             <button
                               type="button"
-                              onClick={() => goToMaster(m.id)}
+                              onClick={() => goToMaster(m)}
                               className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] text-[var(--app-text-muted)] shadow-sm hover:border-green-400 hover:text-green-600"
                             >
                               <BarChart3 className="h-4 w-4" />
@@ -501,30 +603,36 @@ export default function TopRatedPage() {
                 <label className="text-sm font-bold text-[var(--app-text-primary)]">Trading Account</label>
                 <select
                   value={copyForm.accountId}
-                  onChange={(e) => setCopyForm({ ...copyForm, accountId: Number(e.target.value) })}
+                  onChange={(e) => handleCopyAccountChange(e.target.value)}
                   className="rating-field mt-1 w-full rounded-xl border px-3 py-2.5 text-sm font-bold"
                 >
-                  {mockTradingAccounts.map((a) => (
+                  {eligibleAccounts.map((a) => (
                     <option key={a.id} value={a.id}>
-                      {a.login} — {money(a.balance)}
+                      {a.accountNumber} — {money(a.balance)}
                     </option>
                   ))}
                 </select>
+                {eligibleAccounts.length === 0 ? (
+                  <p className="mt-2 text-xs text-amber-600">
+                    Master trading accounts cannot be used for copying. Use a separate MT5 account.
+                  </p>
+                ) : null}
               </div>
               <div>
                 <label className="text-sm font-bold text-[var(--app-text-primary)]">Allocation ($)</label>
                 <input
                   type="number"
+                  readOnly
+                  disabled
                   value={copyForm.allocation}
-                  onChange={(e) => setCopyForm({ ...copyForm, allocation: Number(e.target.value) })}
-                  className="rating-field mt-1 w-full rounded-xl border px-3 py-2.5 text-sm font-bold"
+                  className="rating-field mt-1 w-full cursor-not-allowed rounded-xl border bg-[var(--app-surface-muted)] px-3 py-2.5 text-sm font-bold opacity-90"
                 />
               </div>
               <div>
                 <label className="text-sm font-bold text-[var(--app-text-primary)]">Copy Mode</label>
                 <select
                   value={copyForm.copyMode}
-                  onChange={(e) => setCopyForm({ ...copyForm, copyMode: e.target.value })}
+                  onChange={(e) => setCopyForm({ ...copyForm, copyMode: e.target.value as "proportional" | "fixed" })}
                   className="rating-field mt-1 w-full rounded-xl border px-3 py-2.5 text-sm font-bold"
                 >
                   <option value="proportional">Proportional</option>
@@ -552,12 +660,29 @@ export default function TopRatedPage() {
                   className="rating-field mt-1 w-full rounded-xl border px-3 py-2.5 text-sm font-bold"
                 />
               </div>
+              <p className="text-xs text-[var(--app-text-muted)]">
+                Full account balance is allocated for copy trading.
+              </p>
+              {copyingOwnMaster ? (
+                <p className="text-sm font-medium text-amber-600">You cannot copy your own master account.</p>
+              ) : null}
+              {copyError ? <p className="text-sm font-medium text-red-500">{copyError}</p> : null}
               <label className="flex items-center gap-2 text-sm font-bold text-[var(--app-text-primary)]">
-                <input type="checkbox" className="rounded accent-green-600" defaultChecked />
+                <input
+                  type="checkbox"
+                  className="rounded accent-green-600"
+                  checked={termsAccepted}
+                  onChange={(e) => setTermsAccepted(e.target.checked)}
+                />
                 I agree to the copy trading terms
               </label>
-              <button type="button" onClick={() => setCopyMaster(null)} className={`${btnPrimary} w-full`}>
-                Start Copying
+              <button
+                type="button"
+                disabled={copySubmitting || eligibleAccounts.length === 0 || copyingOwnMaster}
+                onClick={handleStartCopying}
+                className={`${btnPrimary} w-full`}
+              >
+                {copySubmitting ? "Starting…" : "Start Copying"}
               </button>
             </div>
           </Modal>

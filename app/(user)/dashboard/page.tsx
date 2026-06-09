@@ -1,48 +1,70 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Copy, Layers, Network, ArrowRight, Activity } from "lucide-react";
 import PageContainer, { HeroCard, InlineBreadcrumb } from "@/components/layout/user/PageContainer";
 import { mockActivity } from "@/lib/mock/user";
-import { mockSubscriptions } from "@/lib/mock/copier";
+import { fetchCopierSettings, fetchCopierSubscriptions } from "@/lib/api/copier";
 import { mockInvestments } from "@/lib/mock/pamm";
 import { mockManagedLinks } from "@/lib/mock/mam";
 import { money, pct } from "@/lib/utils";
 
-const modules = [
-  {
-    name: "Copier",
-    icon: Copy,
-    href: "/copier/area",
-    stats: [
-      { label: "Active Copies", value: mockSubscriptions.filter((c) => c.status === "Active").length },
-      { label: "Total Allocated", value: money(mockSubscriptions.reduce((s, c) => s + c.allocation, 0)) },
-    ],
-  },
-  {
-    name: "PAMM",
-    icon: Layers,
-    href: "/pamm/investor",
-    stats: [
-      { label: "Investments", value: mockInvestments.filter((i) => i.status === "Active").length },
-      { label: "Total Invested", value: money(mockInvestments.reduce((s, i) => s + i.amount, 0)) },
-    ],
-  },
-  {
-    name: "MAM",
-    icon: Network,
-    href: "/mam/investor",
-    stats: [
-      { label: "Linked Accounts", value: mockManagedLinks.filter((l) => l.status === "Active").length },
-      { label: "Avg P&L", value: pct(mockManagedLinks.reduce((s, l) => s + l.pnlPct, 0) / mockManagedLinks.length) },
-    ],
-  },
-];
-
 export default function DashboardPage() {
+  const [copierStats, setCopierStats] = useState({ active: 0, allocated: 0, show: true });
+
+  useEffect(() => {
+    Promise.all([fetchCopierSettings(), fetchCopierSubscriptions()])
+      .then(([settings, subs]) => {
+        if (!settings.showOnDashboard) {
+          setCopierStats({ active: 0, allocated: 0, show: false });
+          return;
+        }
+        setCopierStats({
+          active: subs.filter((s) => s.status === "active").length,
+          allocated: subs.reduce((sum, s) => sum + s.allocation, 0),
+          show: true,
+        });
+      })
+      .catch(() => setCopierStats({ active: 0, allocated: 0, show: true }));
+  }, []);
+
+  const modules = [
+    {
+      name: "Copier",
+      icon: Copy,
+      href: "/copier/area",
+      stats: [
+        { label: "Active Copies", value: copierStats.active },
+        { label: "Total Allocated", value: money(copierStats.allocated) },
+      ],
+      hidden: !copierStats.show,
+    },
+    {
+      name: "PAMM",
+      icon: Layers,
+      href: "/pamm/investor",
+      stats: [
+        { label: "Investments", value: mockInvestments.filter((i) => i.status === "Active").length },
+        { label: "Total Invested", value: money(mockInvestments.reduce((s, i) => s + i.amount, 0)) },
+      ],
+      hidden: false,
+    },
+    {
+      name: "MAM",
+      icon: Network,
+      href: "/mam/investor",
+      stats: [
+        { label: "Linked Accounts", value: mockManagedLinks.filter((l) => l.status === "Active").length },
+        { label: "Avg P&L", value: pct(mockManagedLinks.reduce((s, l) => s + l.pnlPct, 0) / mockManagedLinks.length) },
+      ],
+      hidden: false,
+    },
+  ].filter((m) => !m.hidden);
+
   return (
     <PageContainer>
-      <div className="mx-auto max-w-[2400px] space-y-6">
+      <div className="w-full min-w-0 space-y-6">
         <InlineBreadcrumb items={[{ label: "Dashboard" }]} />
         <HeroCard icon={Activity} title="Social Trading Dashboard" subtitle="Overview of your Copier, PAMM, and MAM activity" />
 
@@ -78,14 +100,12 @@ export default function DashboardPage() {
           <h2 className="text-lg font-bold text-[var(--app-text-primary)]">Recent Activity</h2>
           <div className="mt-4 space-y-3">
             {mockActivity.map((item) => (
-              <div key={item.id} className="flex items-center justify-between rounded-md border border-[var(--app-border)] px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--app-surface-muted)] text-[color:var(--app-primary-solid)]">
-                    {item.type === "copy" ? <Copy className="h-4 w-4" /> : item.type === "pamm" ? <Layers className="h-4 w-4" /> : <Network className="h-4 w-4" />}
-                  </span>
-                  <p className="text-sm text-[var(--app-text-primary)]">{item.message}</p>
+              <div key={item.id} className="flex items-center justify-between border-b border-[var(--app-border)] pb-3 last:border-0">
+                <div>
+                  <p className="text-sm font-semibold text-[var(--app-text-primary)]">{item.message}</p>
+                  <p className="text-xs text-[var(--app-text-muted)]">{item.time}</p>
                 </div>
-                <span className="text-xs text-[var(--app-text-muted)]">{item.time}</span>
+                <span className="text-xs font-bold uppercase text-[var(--app-text-muted)]">{item.type}</span>
               </div>
             ))}
           </div>

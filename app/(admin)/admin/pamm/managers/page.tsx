@@ -12,7 +12,7 @@ export default function AdminPammManagersPage() {
   const [rejectRow, setRejectRow] = useState<(typeof mockAdminPammManagers)[0] | null>(null);
 
   return (
-    <div className="mx-auto max-w-[2400px] space-y-6">
+    <div className="w-full min-w-0 space-y-6">
       <div><h1 className="text-2xl font-bold">PAMM Managers</h1><p className="text-sm text-[var(--app-text-secondary)]">Review manager applications and pools</p></div>
       <ProTable
         title="PAMM Managers"

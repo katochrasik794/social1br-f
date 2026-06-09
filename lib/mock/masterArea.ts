@@ -28,7 +28,7 @@ export type MasterCumulativePoint = {
 };
 
 export type MasterAttachedAccount = {
-  id: number;
+  id: string;
   login: string;
   platform: "MT4" | "MT5";
   status: "Active" | "Archived";
@@ -37,11 +37,23 @@ export type MasterAttachedAccount = {
   gainPct: number;
   commissionPerLot: number;
   riskScore: number;
+  balance?: number;
+  equity?: number;
+  displayName?: string;
+  headline?: string;
+  strategy?: string;
+  strategyDetail?: string | null;
+  commissionPct?: number;
+  minCopyAmount?: number;
+  riskLevel?: string;
+  riskProfile?: "low" | "medium" | "high";
+  publicProfile?: boolean;
+  acceptNewCopiers?: boolean;
 };
 
 export const mockMasterAttachedAccounts: MasterAttachedAccount[] = [
   {
-    id: 1,
+    id: "1",
     login: "88210450",
     platform: "MT5",
     status: "Active",
@@ -52,7 +64,7 @@ export const mockMasterAttachedAccounts: MasterAttachedAccount[] = [
     riskScore: 4,
   },
   {
-    id: 2,
+    id: "2",
     login: "88210451",
     platform: "MT5",
     status: "Active",
@@ -63,7 +75,7 @@ export const mockMasterAttachedAccounts: MasterAttachedAccount[] = [
     riskScore: 5,
   },
   {
-    id: 3,
+    id: "3",
     login: "4090876",
     platform: "MT4",
     status: "Archived",
@@ -248,8 +260,8 @@ export type MasterAccountStatsBundle = {
   openTrades: MasterHistoryTrade[];
 };
 
-const ACCOUNT_STATS: Record<number, MasterAccountStatsBundle> = {
-  1: {
+const ACCOUNT_STATS: Record<string, MasterAccountStatsBundle> = {
+  "1": {
     commissionPayouts: [
       { id: "1a", weekLabel: "10.05.2021 – 16.05.2021", amount: 2.4 },
       { id: "2a", weekLabel: "03.05.2021 – 09.05.2021", amount: 1.8 },
@@ -279,14 +291,14 @@ const ACCOUNT_STATS: Record<number, MasterAccountStatsBundle> = {
       { id: "o1", orderId: "#148090001", volume: 0.05, type: "BUY", symbol: "EURUSD", openTime: "2026-06-08 09:15", openPrice: "1.08742", tpSl: "1.09200 / 1.08400", pips: 12.4, commission: "—", profit: 18.5 },
     ],
   },
-  2: {
+  "2": {
     commissionPayouts: mockMasterCommissionPayouts,
     summaryStats: mockMasterSummaryStats,
     summaryBottom: mockMasterSummaryBottom,
     closedTrades: mockMasterClosedTrades,
     openTrades: mockMasterOpenTrades,
   },
-  3: {
+  "3": {
     commissionPayouts: [
       { id: "1c", weekLabel: "10.05.2021 – 16.05.2021", amount: 0.1 },
       { id: "2c", weekLabel: "03.05.2021 – 09.05.2021", amount: 0.05 },
@@ -315,8 +327,10 @@ const ACCOUNT_STATS: Record<number, MasterAccountStatsBundle> = {
   },
 };
 
-export function getMasterAccountStats(accountId: number): MasterAccountStatsBundle {
-  return ACCOUNT_STATS[accountId] ?? ACCOUNT_STATS[1];
+const DEFAULT_ACCOUNT_STATS = ACCOUNT_STATS["1"];
+
+export function getMasterAccountStats(accountId: string): MasterAccountStatsBundle {
+  return ACCOUNT_STATS[accountId] ?? DEFAULT_ACCOUNT_STATS;
 }
 
 export const mockMasterSettings: MasterSettings = {
