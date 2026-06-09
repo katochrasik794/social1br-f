@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Check, ChevronRight, Crown, Plus } from "lucide-react";
 import PageContainer, { HeroCard, InlineBreadcrumb, btnPrimary, btnSecondary } from "@/components/layout/user/PageContainer";
@@ -59,7 +59,7 @@ function mapAttachedAccounts(
   }));
 }
 
-export default function MasterAreaPage() {
+function MasterAreaPageContent() {
   const { data, loading, refetch, applyMasterMe } = useMasterProfile();
   const searchParams = useSearchParams();
   const [applyModalOpen, setApplyModalOpen] = useState(searchParams.get("step") === "apply");
@@ -469,5 +469,21 @@ export default function MasterAreaPage() {
       </div>
       {applyModal}
     </PageContainer>
+  );
+}
+
+export default function MasterAreaPage() {
+  return (
+    <Suspense
+      fallback={
+        <PageContainer>
+          <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-surface)] p-8 text-center text-sm text-[var(--app-text-muted)]">
+            Loading master area…
+          </div>
+        </PageContainer>
+      }
+    >
+      <MasterAreaPageContent />
+    </Suspense>
   );
 }

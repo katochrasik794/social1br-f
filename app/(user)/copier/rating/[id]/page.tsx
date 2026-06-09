@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import PageContainer, { btnPrimary, InlineBreadcrumb } from "@/components/layout/user/PageContainer";
@@ -28,7 +28,7 @@ import type { MasterAccountDetails } from "@/lib/mock/masterDetail";
 import { useMasterProfile } from "@/providers/MasterProfileProvider";
 import { money } from "@/lib/utils";
 
-export default function MasterDetailPage() {
+function MasterDetailPageContent() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -295,5 +295,21 @@ export default function MasterDetailPage() {
         </Modal>
       </div>
     </PageContainer>
+  );
+}
+
+export default function MasterDetailPage() {
+  return (
+    <Suspense
+      fallback={
+        <PageContainer>
+          <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-surface)] p-8 text-center text-sm text-[var(--app-text-muted)]">
+            Loading master…
+          </div>
+        </PageContainer>
+      }
+    >
+      <MasterDetailPageContent />
+    </Suspense>
   );
 }

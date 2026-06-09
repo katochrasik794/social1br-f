@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import CopierSummaryRings from "@/components/copier/area/CopierSummaryRings";
@@ -21,7 +21,7 @@ import { computeSummaryFromTrades } from "@/lib/copier/summaryFromTrades";
 import { tradesToProfitLoss } from "@/lib/copier/tradeHistoryTransforms";
 import { formatDate, money } from "@/lib/utils";
 
-export default function AdminMasterProfilePage() {
+function AdminMasterProfilePageContent() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -198,5 +198,19 @@ export default function AdminMasterProfilePage() {
         ]}
       />
     </div>
+  );
+}
+
+export default function AdminMasterProfilePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-surface)] p-8 text-center text-sm text-[var(--app-text-muted)]">
+          Loading master profile…
+        </div>
+      }
+    >
+      <AdminMasterProfilePageContent />
+    </Suspense>
   );
 }
