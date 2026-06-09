@@ -1,26 +1,191 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --app-primary-solid: #16a34a;
+  --app-client-bg: #f9fafb;
+  --app-admin-bg: #f1f6ec;
+  --app-page-gradient: linear-gradient(135deg, #dbeafe 0%, #e8ecf1 48%, #dcfce7 100%);
+  --app-shell-bg: rgba(255, 255, 255, 0.72);
+  --app-shell-border: rgba(226, 232, 240, 0.85);
+  --app-surface: #ffffff;
+  --app-surface-muted: #f8fafc;
+  --app-text-primary: #0f172a;
+  --app-text-secondary: #475569;
+  --app-text-muted: #94a3b8;
+  --app-border: #e2e8f0;
+  --app-table-head-bg: #f1f5f9;
+  --app-table-head-text: #1e293b;
+  --app-mix-base: #ffffff;
+  --app-luxury-gold: #d4af37;
+  --app-luxury-gold-light: #e8c872;
+  --app-luxury-gold-grid: rgba(212, 175, 55, 0.055);
+  --app-luxury-gold-grid-faint: rgba(212, 175, 55, 0.035);
+  --app-page-grid-line: rgba(100, 116, 139, 0.14);
+  --app-page-grid-line-faint: rgba(100, 116, 139, 0.07);
+  --app-admin-bg-dark: #0a0a0a;
+
+  /* Auth split-screen tokens */
+  --auth-hero-bg: #f8f8f8;
+  --auth-hero-glow: rgba(212, 175, 55, 0.12);
+  --auth-form-bg: #ffffff;
+  --auth-input-bg: #f4f4f5;
+  --auth-input-border: #e4e4e7;
+  --auth-btn-bg: #0a0a0a;
+  --auth-btn-text: #ffffff;
+  --auth-label: #71717a;
+  --auth-muted: #a1a1aa;
+}
+
+.dark {
+  --app-client-bg: #000000;
+  --app-admin-bg: #0a0a0a;
+  --app-page-gradient: linear-gradient(135deg, #0c1a2e 0%, #1a1a24 48%, #0a1f14 100%);
+  --app-shell-bg: rgba(17, 17, 17, 0.78);
+  --app-shell-border: rgba(39, 39, 42, 0.85);
+  --app-surface: #111111;
+  --app-surface-muted: #1a1a1a;
+  --app-text-primary: #f1f5f9;
+  --app-text-secondary: #94a3b8;
+  --app-text-muted: #64748b;
+  --app-border: #27272a;
+  --app-table-head-bg: #cbd5e1;
+  --app-table-head-text: #0f172a;
+  --app-mix-base: #111111;
+  --app-luxury-gold: #e8c872;
+  --app-luxury-gold-light: #f0d78c;
+  --app-luxury-gold-grid: rgba(232, 200, 114, 0.08);
+  --app-luxury-gold-grid-faint: rgba(232, 200, 114, 0.04);
+  --app-page-grid-line: rgba(148, 163, 184, 0.16);
+  --app-page-grid-line-faint: rgba(148, 163, 184, 0.08);
+
+  --auth-hero-bg: #050505;
+  --auth-hero-glow: rgba(232, 200, 114, 0.14);
+  --auth-form-bg: #000000;
+  --auth-input-bg: #141414;
+  --auth-input-border: #27272a;
+  --auth-btn-bg: #ffffff;
+  --auth-btn-text: #0a0a0a;
+  --auth-label: #71717a;
+  --auth-muted: #52525b;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-jakarta);
+  --color-background: var(--app-client-bg);
+  --color-foreground: var(--app-text-primary);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  min-height: 100%;
+  font-family: var(--font-jakarta), system-ui, sans-serif;
+  font-size: 14px;
+  background-color: transparent;
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 39px,
+      var(--app-page-grid-line-faint) 39px,
+      var(--app-page-grid-line-faint) 40px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 39px,
+      var(--app-page-grid-line-faint) 39px,
+      var(--app-page-grid-line-faint) 40px
+    ),
+    var(--app-page-gradient);
+  background-attachment: fixed;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100%;
+  color: var(--app-text-primary);
+  background: transparent;
+}
+
+body.client-route,
+body.admin-route {
+  background: transparent;
+}
+
+body.auth-route {
+  background-color: var(--auth-form-bg);
+}
+
+html:has(body.auth-route) {
+  background: var(--auth-form-bg);
+  background-image: none;
+  background-attachment: scroll;
+}
+
+.dark:has(body.auth-route) {
+  background-color: var(--auth-form-bg) !important;
+  background-image: none !important;
+}
+
+.app-shell-panel {
+  background-color: var(--app-shell-bg);
+  border-color: var(--app-shell-border);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+
+.rating-table-head {
+  background-color: var(--app-table-head-bg);
+  color: var(--app-table-head-text);
+  border-color: color-mix(in oklab, var(--app-table-head-text) 12%, transparent);
+}
+
+.rating-field {
+  border-color: var(--app-border);
+  background-color: var(--app-surface-muted);
+  color: var(--app-text-primary);
+}
+
+/* Auth hero subtle grid */
+.auth-hero-grid {
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 39px,
+      var(--app-luxury-gold-grid-faint) 39px,
+      var(--app-luxury-gold-grid-faint) 40px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 39px,
+      var(--app-luxury-gold-grid-faint) 39px,
+      var(--app-luxury-gold-grid-faint) 40px
+    );
+}
+
+@media (min-width: 1024px) {
+  .sidebar\:pl-72 {
+    padding-left: 18rem;
+  }
+}
+
+@media (max-width: 1024px) {
+  .sidebar\:pl-72 {
+    padding-left: 0;
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(1rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.toast-enter {
+  animation: toast-in 0.3s ease-out;
 }
