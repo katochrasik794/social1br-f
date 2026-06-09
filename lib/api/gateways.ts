@@ -1,4 +1,4 @@
-import { apiRequest } from "./http";
+import { apiRequest, getApiUrl } from "./http";
 
 export type GatewayCategory =
   | "gateway"
@@ -52,8 +52,7 @@ export function resolveAssetUrl(path: string | null | undefined) {
   if (!path) return "";
   if (path.startsWith("http")) return path;
   if (path.startsWith("/uploads/")) {
-    const base = process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, "") || "http://localhost:5001";
-    return `${base}${path}`;
+    return `${getApiUrl()}${path}`;
   }
   return path;
 }

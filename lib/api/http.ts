@@ -2,7 +2,14 @@ export type ApiResponse<T> =
   | { success: true; data: T; message?: string }
   | { success: false; error: string };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5001";
+function resolveApiBase(): string {
+  const explicit = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (explicit) return explicit.replace(/\/api\/?$/, "");
+  if (typeof window !== "undefined") return "";
+  return (process.env.BACKEND_URL ?? "http://localhost:5001").replace(/\/api\/?$/, "");
+}
+
+const API_URL = resolveApiBase();
 
 type RequestOptions = {
   method?: string;
