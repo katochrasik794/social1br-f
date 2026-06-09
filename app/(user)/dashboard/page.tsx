@@ -4,29 +4,63 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Copy, Layers, Network, ArrowRight, Activity } from "lucide-react";
 import PageContainer, { HeroCard, InlineBreadcrumb } from "@/components/layout/user/PageContainer";
-import { mockActivity } from "@/lib/mock/user";
+import { fetchDashboardActivity, type DashboardActivity } from "@/lib/api/dashboard";
 import { fetchCopierSettings, fetchCopierSubscriptions } from "@/lib/api/copier";
-import { mockInvestments } from "@/lib/mock/pamm";
-import { mockManagedLinks } from "@/lib/mock/mam";
+import { fetchPammSettings, fetchPammInvestorDashboard } from "@/lib/api/pamm";
+import { fetchMamSettings, fetchMamInvestorDashboard } from "@/lib/api/mam";
 import { money, pct } from "@/lib/utils";
 
 export default function DashboardPage() {
   const [copierStats, setCopierStats] = useState({ active: 0, allocated: 0, show: true });
+  const [pammStats, setPammStats] = useState({ investments: 0, totalInvested: 0, show: true });
+  const [mamStats, setMamStats] = useState({ linked: 0, avgPnl: 0, show: true });
+  const [activity, setActivity] = useState<DashboardActivity[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([fetchCopierSettings(), fetchCopierSubscriptions()])
-      .then(([settings, subs]) => {
-        if (!settings.showOnDashboard) {
+    Promise.all([
+      fetchCopierSettings().catch(() => null),
+      fetchCopierSubscriptions().catch(() => []),
+      fetchPammSettings().catch(() => null),
+      fetchPammInvestorDashboard().catch(() => null),
+      fetchMamSettings().catch(() => null),
+      fetchMamInvestorDashboard().catch(() => null),
+      fetchDashboardActivity().catch(() => []),
+    ])
+      .then(([copierSettings, subs, pammSettings, pammDash, mamSettings, mamDash, feed]) => {
+        if (copierSettings?.showOnDashboard) {
+          setCopierStats({
+            active: subs.filter((s) => s.status === "active").length,
+            allocated: subs.reduce((sum, s) => sum + s.allocation, 0),
+            show: true,
+          });
+        } else {
           setCopierStats({ active: 0, allocated: 0, show: false });
-          return;
         }
-        setCopierStats({
-          active: subs.filter((s) => s.status === "active").length,
-          allocated: subs.reduce((sum, s) => sum + s.allocation, 0),
-          show: true,
-        });
+
+        if (pammSettings?.showOnDashboard && pammSettings.enablePamm) {
+          setPammStats({
+            investments: pammDash?.summary.activeInvestments ?? 0,
+            totalInvested: pammDash?.summary.totalInvested ?? 0,
+            show: true,
+          });
+        } else {
+          setPammStats({ investments: 0, totalInvested: 0, show: false });
+        }
+
+        if (mamSettings?.showOnDashboard && mamSettings.enableMam) {
+          setMamStats({
+            linked: mamDash?.summary.linkedAccounts ?? 0,
+            avgPnl: mamDash?.summary.avgPnlPct ?? 0,
+            show: true,
+          });
+        } else {
+          setMamStats({ linked: 0, avgPnl: 0, show: false });
+        }
+
+        setActivity(feed);
       })
-      .catch(() => setCopierStats({ active: 0, allocated: 0, show: true }));
+      .finally(() => setLoading(false));
   }, []);
 
   const modules = [
@@ -45,20 +79,20 @@ export default function DashboardPage() {
       icon: Layers,
       href: "/pamm/investor",
       stats: [
-        { label: "Investments", value: mockInvestments.filter((i) => i.status === "Active").length },
-        { label: "Total Invested", value: money(mockInvestments.reduce((s, i) => s + i.amount, 0)) },
+        { label: "Investments", value: pammStats.investments },
+        { label: "Total Invested", value: money(pammStats.totalInvested) },
       ],
-      hidden: false,
+      hidden: !pammStats.show,
     },
     {
       name: "MAM",
       icon: Network,
       href: "/mam/investor",
       stats: [
-        { label: "Linked Accounts", value: mockManagedLinks.filter((l) => l.status === "Active").length },
-        { label: "Avg P&L", value: pct(mockManagedLinks.reduce((s, l) => s + l.pnlPct, 0) / mockManagedLinks.length) },
+        { label: "Linked Accounts", value: mamStats.linked },
+        { label: "Avg P&L", value: pct(mamStats.avgPnl) },
       ],
-      hidden: false,
+      hidden: !mamStats.show,
     },
   ].filter((m) => !m.hidden);
 
@@ -99,15 +133,21 @@ export default function DashboardPage() {
         <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-surface)] p-6">
           <h2 className="text-lg font-bold text-[var(--app-text-primary)]">Recent Activity</h2>
           <div className="mt-4 space-y-3">
-            {mockActivity.map((item) => (
-              <div key={item.id} className="flex items-center justify-between border-b border-[var(--app-border)] pb-3 last:border-0">
-                <div>
-                  <p className="text-sm font-semibold text-[var(--app-text-primary)]">{item.message}</p>
-                  <p className="text-xs text-[var(--app-text-muted)]">{item.time}</p>
+            {loading ? (
+              <p className="text-sm text-[var(--app-text-muted)]">Loading activity…</p>
+            ) : activity.length === 0 ? (
+              <p className="text-sm text-[var(--app-text-muted)]">No recent activity yet.</p>
+            ) : (
+              activity.map((item) => (
+                <div key={item.id} className="flex items-center justify-between border-b border-[var(--app-border)] pb-3 last:border-0">
+                  <div>
+                    <p className="text-sm font-semibold text-[var(--app-text-primary)]">{item.message}</p>
+                    <p className="text-xs text-[var(--app-text-muted)]">{item.time}</p>
+                  </div>
+                  <span className="text-xs font-bold uppercase text-[var(--app-text-muted)]">{item.type}</span>
                 </div>
-                <span className="text-xs font-bold uppercase text-[var(--app-text-muted)]">{item.type}</span>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>
